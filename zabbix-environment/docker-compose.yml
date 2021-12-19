@@ -1,0 +1,143 @@
+version: "3.5"
+
+services:
+  traefik:
+    image: "traefik:v2.4"
+    restart: always
+    env_file:
+      - ./env_vars/traefik
+    ports:
+      - "80:80"
+      - "81:81"
+      - "89:89"
+    command:
+      - "--api.insecure=true"
+      - "--global.checkNewVersion=false"
+      - "--global.sendAnonymousUsage=false"
+      - "--ping=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.traefik.address=:89"
+      - "--entrypoints.zbx_web.address=:80"
+      - "--entrypoints.zbx_basicauth.address=:81"
+      - "--log.level=INFO"
+      - "--metrics.prometheus=true"
+      - "--accesslog=true"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:ubuntu-5.4-latest
+    ports:
+      - "10051:10051"
+    env_file:
+      - ./env_vars/.env_db_pgsql
+      - ./env_vars/.env_srv
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+    depends_on:
+      - postgres-server
+    stop_grace_period: 30s
+    sysctls:
+      - net.ipv4.ip_local_port_range=1024 65000
+      - net.ipv4.conf.all.accept_redirects=0
+      - net.ipv4.conf.all.secure_redirects=0
+      - net.ipv4.conf.all.send_redirects=0
+    labels:
+      - "traefik.enable=false"
+
+  zabbix-proxy-sqlite3:
+    image: zabbix/zabbix-proxy-sqlite3:ubuntu-5.4-latest
+    profiles:
+      - all
+    ports:
+      - "10061:10051"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./env_vars/.env_prx
+      - ./env_vars/.env_prx_sqlite3
+    stop_grace_period: 30s
+    labels:
+      - "traefik.enable=false"
+
+  zabbix-web-nginx-pgsql:
+    image: zabbix/zabbix-web-nginx-pgsql:ubuntu-5.4-latest
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    env_file:
+      - ./env_vars/.env_db_pgsql
+      - ./env_vars/.env_web
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+    depends_on:
+      - postgres-server
+      - zabbix-server
+    stop_grace_period: 10s
+    sysctls:
+      - net.core.somaxconn=65535
+    labels:
+      - "traefik.enable=true"
+      # echo $(htpasswd -nb user password) | sed -e s/\\$/\\$\\$/g
+      - "traefik.http.middlewares.basic-auth.basicauth.users=Admin:$$apr1$$zqUKe7F8$$PYXGQl77HIeqf5fRjx6XB0"
+      # Access with "localhost" and "host.docker.internal" over traefik
+      - "traefik.http.routers.zbx_web.tls=false"
+      - "traefik.http.routers.zbx_web.rule=Host(`localhost`)"
+      - "traefik.http.routers.zbx_web.entrypoints=zbx_web"
+      - "traefik.http.routers.zbx_web.service=zbx-nginx"
+      - "traefik.http.routers.zbx_web2.tls=false"
+      - "traefik.http.routers.zbx_web2.rule=Host(`host.docker.internal`)"
+      - "traefik.http.routers.zbx_web2.entrypoints=zbx_web"
+      - "traefik.http.routers.zbx_web2.service=zbx-nginx"
+      #
+      - "traefik.http.routers.zbx_basicauth.tls=false"
+      - "traefik.http.routers.zbx_basicauth.rule=Host(`localhost`)"
+      - "traefik.http.routers.zbx_basicauth.entrypoints=zbx_basicauth"
+      - "traefik.http.routers.zbx_basicauth.service=zbx-nginx"
+      - "traefik.http.routers.zbx_basicauth.middlewares=basic-auth"
+      - "traefik.http.services.zbx-nginx.loadbalancer.server.port=8080"
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent:ubuntu-5.4-latest
+    profiles:
+      - full
+      - all
+    ports:
+      - "10050:10050"
+    env_file:
+      - ./env_vars/.env_agent
+    privileged: true
+    pid: "host"
+    stop_grace_period: 5s
+
+  zabbix-web-service:
+    image: zabbix/zabbix-web-service:ubuntu-5.4-latest
+    ports:
+      - "10053:10053"
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - ./env_vars/.env_web_service
+
+  postgres-server:
+    image: timescale/timescaledb:latest-pg12
+    volumes:
+      - pgdata:/var/lib/postgresql/data:rw
+    env_file:
+      - ./env_vars/.env_db_pgsql
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+    stop_grace_period: 1m
+
+secrets:
+  POSTGRES_USER:
+    file: ./env_vars/.POSTGRES_USER
+  POSTGRES_PASSWORD:
+    file: ./env_vars/.POSTGRES_PASSWORD
+
+volumes:
+  pgdata:
