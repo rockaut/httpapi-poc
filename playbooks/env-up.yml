@@ -1,0 +1,10 @@
+---
+
+- hosts: localhost
+  tasks:
+    - community.docker.docker_compose:
+        pull: true
+        project_src: "{{ docker_env_path }}"
+        state: present
+
+...

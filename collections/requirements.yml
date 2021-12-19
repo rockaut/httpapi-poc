@@ -1,0 +1,9 @@
+---
+
+collections:
+  - name: community.docker
+  - name: https://github.com/ansible-collections/community.zabbix.git
+    type: git
+    version: httpapi1
+
+...

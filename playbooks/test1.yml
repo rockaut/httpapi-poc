@@ -1,0 +1,40 @@
+---
+
+- hosts: with_zapi
+  gather_facts: false
+  tags:
+    - zapi
+  tasks:
+    - community.zabbix.zabbix_api_info:
+        server_url: "{{ server_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_pass }}"
+        http_login_user: "{{ basicauth_user | default(omit) }}"
+        http_login_password: "{{ basicauth_pass | default(omit) }}"
+    - name: Get host info
+      community.zabbix.zabbix_host_info:
+        server_url: "{{ server_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_pass }}"
+        http_login_user: "{{ basicauth_user | default(omit) }}"
+        http_login_password: "{{ basicauth_pass | default(omit) }}"
+        host_name: Zabbix server
+        connection_type: "{{ connection_type }}"
+      register: result
+      failed_when: '"Zabbix server" not in result.hosts[0].name'
+
+- hosts: with_httpapi
+  gather_facts: false
+  tags:
+    - httpapi
+  tasks:
+    - community.zabbix.zabbix_api_info:
+        connection_type: "{{ connection_type }}"
+    - name: Get host info
+      community.zabbix.zabbix_host_info:
+        host_name: Zabbix server
+        connection_type: "{{ connection_type }}"
+      register: result
+      failed_when: '"Zabbix server" not in result.hosts[0].name'
+
+...

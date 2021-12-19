@@ -1,11 +1,14 @@
 # httpapi-poc
 
 > THIS SHOULD AND WILL NOT WORK AS A PRODUCTION READY ENVIRONMENT
+> THIS ALSO IS NOT INTENDED AS A INTEGRATION TESTS ENVIRONMENT
 
 ## Prerequisites
 
 * Docker
 * Browser
+* ansible
+* ansible-galaxy with collections/requirements.yml
 
 ## Zabbix environment with docker for testing
 

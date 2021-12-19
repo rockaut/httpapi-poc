@@ -1,0 +1,85 @@
+---
+
+- hosts: localhost
+  gather_facts: false
+  tags:
+    - web-direct
+  tasks:
+    - name: try access direct
+      uri:
+        url: "{{ web_direct }}"
+        return_content: yes
+      register: result
+      failed_when: '"Zabbix SIA" not in result.content'
+    - name: Get api version
+      community.zabbix.zabbix_api_info:
+        server_url: "{{ web_direct }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_pass }}"
+        connection_type: "auto"
+    - name: Get host info
+      community.zabbix.zabbix_host_info:
+        server_url: "{{ web_direct }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_pass }}"
+        host_name: Zabbix server
+        connection_type: "auto"
+    - name: Get api version
+      community.zabbix.zabbix_api_info:
+        server_url: "{{ web_direct }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_pass }}"
+        connection_type: "httpapi"
+    - name: Get host info
+      community.zabbix.zabbix_host_info:
+        server_url: "{{ web_direct }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_pass }}"
+        host_name: Zabbix server
+        connection_type: "httpapi"
+
+- hosts: localhost
+  gather_facts: false
+  tags:
+    - web-default
+  tasks:
+    - name: try access over traefik
+      uri:
+        url: "{{ web_default }}"
+        return_content: yes
+      register: result
+      failed_when: '"Zabbix SIA" not in result.content'
+
+- hosts: localhost
+  gather_facts: false
+  tags:
+    - web-basicauth
+  tasks:
+    - name: try access over basic auth (should be 401)
+      uri:
+        url: "{{ web_basicauth }}"
+        return_content: yes
+      register: result
+      failed_when: "result.status != 401"
+    - name: try access over basic auth (now with pass)
+      uri:
+        url: "{{ web_basicauth }}"
+        user: "{{ basicauth_user }}"
+        password: "{{ basicauth_pass }}"
+        return_content: yes
+      register: result
+      failed_when: '"Zabbix SIA" not in result.content'
+
+
+
+    # - name: Get host info
+    #   community.zabbix.zabbix_host_info:
+    #     server_url: http://host.docker.internal
+    #     login_user: Admin
+    #     login_password: zabbix
+    #     http_login_user: Admin
+    #     http_login_password: zabbix
+    #     connection_type: 'httpapi'
+    #     host_name: Zabbix server
+
+...

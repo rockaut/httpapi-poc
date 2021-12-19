@@ -1,0 +1,11 @@
+---
+
+- hosts: localhost
+  tasks:
+    - community.docker.docker_compose:
+        project_src: "{{ docker_env_path }}"
+        state: absent
+        remove_volumes: true
+        remove_orphans: true
+
+...
